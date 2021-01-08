@@ -24,7 +24,6 @@ class Face_Register:
         self.path_photos_from_camera = "data/data_faces_from_camera/"
         self.font = cv2.FONT_ITALIC
 
-        self.existing_faces_cnt = 0         # 已录入的人脸计数器 / cnt for counting saved faces
         self.ss_cnt = 0                     # 录入 personX 人脸时图片计数器 / cnt for screen shots
         self.current_frame_faces_cnt = 0    # 录入人脸计数器 / cnt for counting faces in current frame
 
@@ -48,24 +47,25 @@ class Face_Register:
     def pre_work_del_old_face_folders(self):
         # 删除之前存的人脸数据文件夹, 删除 "/data_faces_from_camera/person_x/"...
         folders_rd = os.listdir(self.path_photos_from_camera)
+        # print(folders_rd)
+        # 递归的删除文件
         for i in range(len(folders_rd)):
             shutil.rmtree(self.path_photos_from_camera+folders_rd[i])
         if os.path.isfile("data/features_all.csv"):
             os.remove("data/features_all.csv")
 
-    # 如果有之前录入的人脸, 在之前 person_x 的序号按照 person_x+1 开始录入 / Start from person_x+1
-    def check_existing_faces_cnt(self):
-        if os.listdir("data/data_faces_from_camera/"):
-            # 获取已录入的最后一个人脸序号 / Get the order of latest person
-            person_list = os.listdir("data/data_faces_from_camera/")
-            person_num_list = []
-            for person in person_list:
-                person_num_list.append(int(person.split('_')[-1]))
-            self.existing_faces_cnt = max(person_num_list)
+    # 检测是否有重复命名的人脸
+    def check_existing_faces(self, newname, break_flag):
+        dir_list = os.listdir("data/data_faces_from_camera/")
+        if dir_list:
+            for dir in dir_list:
+                if dir == newname:
+                    break_flag = 1
+                    break
+            # return break_flag
+        return break_flag
+                
 
-        # 如果第一次存储或者没有之前录入的人脸, 按照 person_1 开始录入 / Start from person_1
-        else:
-            self.existing_faces_cnt = 0
 
     # 获取处理之后 stream 的帧数 / Update FPS of video stream
     def update_fps(self):
@@ -90,12 +90,11 @@ class Face_Register:
         # 1. 新建储存人脸图像文件目录 / Create folders to save photos
         self.pre_work_mkdir()
 
-        # 2. 删除 "/data/data_faces_from_camera" 中已有人脸图像文件 / Uncomment if want to delete the saved faces and start from person_1
-        if os.path.isdir(self.path_photos_from_camera):
-            self.pre_work_del_old_face_folders()
+        # # 2. 删除 "/data/data_faces_from_camera" 中已有人脸图像文件 / Uncomment if want to delete the saved faces and start from person_1
+        # if os.path.isdir(self.path_photos_from_camera):
+        #     self.pre_work_del_old_face_folders()
 
-        # 3. 检查 "/data/data_faces_from_camera" 中已有人脸文件
-        self.check_existing_faces_cnt()
+        
 
         while stream.isOpened():
             flag, img_rd = stream.read()        # Get camera video stream
@@ -104,8 +103,14 @@ class Face_Register:
 
             # 4. 按下 'n' 新建存储人脸的文件夹 / Press 'n' to create the folders for saving faces
             if kk == ord('n'):
-                self.existing_faces_cnt += 1
-                current_face_dir = self.path_photos_from_camera + "person_" + str(self.existing_faces_cnt)
+                print('请输入名字')
+                break_flag = 0
+                newname  = input()
+                break_flag = self.check_existing_faces(newname, break_flag)
+                if break_flag:
+                    print('名字已存在,请重试')
+                    continue
+                current_face_dir = self.path_photos_from_camera + newname
                 os.makedirs(current_face_dir)
                 print('\n')
                 print("新建的人脸文件夹 / Create folders: ", current_face_dir)
